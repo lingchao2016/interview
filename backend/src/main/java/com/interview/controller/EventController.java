@@ -10,6 +10,7 @@ import com.interview.model.Performer;
 import com.interview.model.Venue;
 import com.interview.repository.PerformerRepository;
 import com.interview.repository.VenueRepository;
+import com.interview.service.EventSearchService;
 import com.interview.service.EventService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -39,14 +40,18 @@ import java.util.stream.Collectors;
 public class EventController {
 
     private final EventService eventService;
+    private final EventSearchService searchService;
     private final EventMapper eventMapper;
     private final VenueRepository venueRepository;
     private final PerformerRepository performerRepository;
 
     @Autowired
-    public EventController(EventService eventService, EventMapper eventMapper,
+    public EventController(EventService eventService,
+                           EventSearchService searchService,
+                           EventMapper eventMapper,
                           VenueRepository venueRepository, PerformerRepository performerRepository) {
         this.eventService = eventService;
+        this.searchService = searchService;
         this.eventMapper = eventMapper;
         this.venueRepository = venueRepository;
         this.performerRepository = performerRepository;
@@ -215,15 +220,15 @@ public class EventController {
         }
     }
 
-    // Search events by name
-    @GetMapping("/search")
-    public ResponseEntity<List<EventResponse>> searchEventsByName(@RequestParam String name) {
-        List<Event> events = eventService.searchEventsByName(name);
-        List<EventResponse> responses = events.stream()
-                .map(eventMapper::toResponse)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(responses);
-    }
+//    // Search events by name
+//    @GetMapping("/search")
+//    public ResponseEntity<List<EventResponse>> searchEventsByName(@RequestParam String name) {
+//        List<Event> events = eventService.searchEventsByName(name);
+//        List<EventResponse> responses = events.stream()
+//                .map(eventMapper::toResponse)
+//                .collect(Collectors.toList());
+//        return ResponseEntity.ok(responses);
+//    }
 
     // Get events by location
     @GetMapping("/location/{location}")
@@ -257,26 +262,31 @@ public class EventController {
         return ResponseEntity.ok(responses);
     }
 
-    // OpenSearch search endpoints
-    @Operation(summary = "Search events using OpenSearch",
-               description = "Search events by query string across name, description, and location fields using OpenSearch full-text search")
-    @GetMapping("/search")
-    public ResponseEntity<List<EventDocument>> searchEvents(@RequestParam String query) {
-        List<EventDocument> results = eventService.opensearchSearchEvents(query);
-        return ResponseEntity.ok(results);
-    }
+     // OpenSearch search endpoints
+     @Operation(summary = "Search events using OpenSearch",
+                description = "Search events by query string across name, description, and location fields using OpenSearch full-text search")
+     @GetMapping("/search")
+     public ResponseEntity<List<EventDocument>> search(
+             @RequestParam(required = false) String keyword,
+             @RequestParam(required = false) String city,
+             @RequestParam(defaultValue = "1") int page,
+             @RequestParam(defaultValue = "20") int size
+     ) throws Exception {
+         List<EventDocument> results = searchService.search(keyword, city, page, size);
+         return ResponseEntity.ok(results);
+     }
 
-    @Operation(summary = "Index all events to OpenSearch",
-               description = "Index all events from the database to OpenSearch for full-text search capabilities")
-    @PreAuthorize("hasRole('ADMIN')")
-    @PostMapping("/search/index")
-    public ResponseEntity<String> indexAllEvents() {
-        try {
-            eventService.indexAllEvents();
-            return ResponseEntity.ok("All events indexed successfully");
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Error indexing events: " + e.getMessage());
-        }
-    }
+     @Operation(summary = "Index all events to OpenSearch",
+                description = "Index all events from the database to OpenSearch for full-text search capabilities")
+     @PreAuthorize("hasRole('ADMIN')")
+     @PostMapping("/search/index")
+     public ResponseEntity<String> indexAllEvents() {
+         try {
+             searchService.indexAllEvents();
+             return ResponseEntity.ok("All events indexed successfully");
+         } catch (Exception e) {
+             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                     .body("Error indexing events: " + e.getMessage());
+         }
+     }
 }

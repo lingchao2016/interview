@@ -2,9 +2,7 @@ package com.interview.service;
 
 import com.interview.dto.CursorPageResponse;
 import com.interview.model.Event;
-import com.interview.model.EventDocument;
 import com.interview.repository.EventRepository;
-import com.interview.repository.EventSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -22,12 +20,10 @@ import java.util.stream.Collectors;
 public class EventService {
 
     private final EventRepository eventRepository;
-    private final EventSearchRepository searchRepository;
 
     @Autowired
-    public EventService(EventRepository eventRepository, EventSearchRepository searchRepository) {
+    public EventService(EventRepository eventRepository) {
         this.eventRepository = eventRepository;
-        this.searchRepository = searchRepository;
     }
 
     @Cacheable(value = "events", key = "'all'")
@@ -120,40 +116,5 @@ public class EventService {
         }
 
         return new CursorPageResponse<>(events, nextCursor, hasMore, pageSize);
-    }
-
-    // OpenSearch methods
-    public void indexEvent(Event event) {
-        EventDocument document = EventDocument.fromEvent(event);
-        searchRepository.save(document);
-    }
-
-    public void indexAllEvents() {
-        List<Event> events = eventRepository.findAll();
-        List<EventDocument> documents = events.stream()
-                .map(EventDocument::fromEvent)
-                .collect(Collectors.toList());
-        searchRepository.saveAll(documents);
-    }
-
-    public List<EventDocument> opensearchSearchEvents(String query) {
-        return searchRepository.findByNameContainingIgnoreCaseOrDescriptionContainingIgnoreCaseOrLocationContainingIgnoreCase(
-                query, query, query);
-    }
-
-    public List<EventDocument> opensearchSearchByName(String name) {
-        return searchRepository.findByNameContainingIgnoreCase(name);
-    }
-
-    public List<EventDocument> opensearchSearchByLocation(String location) {
-        return searchRepository.findByLocationContainingIgnoreCase(location);
-    }
-
-    public List<EventDocument> opensearchSearchByDescription(String description) {
-        return searchRepository.findByDescriptionContainingIgnoreCase(description);
-    }
-
-    public void deleteEventFromIndex(String id) {
-        searchRepository.deleteById(id);
     }
 }

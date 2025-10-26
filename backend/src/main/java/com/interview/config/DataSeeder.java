@@ -6,6 +6,7 @@ import com.interview.model.Role;
 import com.interview.repository.AccountRepository;
 import com.interview.repository.EventRepository;
 import com.interview.repository.RoleRepository;
+import com.interview.service.EventSearchService;
 import com.interview.service.EventService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
@@ -32,6 +33,9 @@ public class DataSeeder implements CommandLineRunner {
 
     @Autowired
     private EventService eventService;
+
+    @Autowired
+    private EventSearchService searchService;
 
     @Override
     public void run(String... args) throws Exception {
@@ -154,7 +158,7 @@ public class DataSeeder implements CommandLineRunner {
         // Index events to OpenSearch
         System.out.println("Indexing events to OpenSearch...");
         try {
-            eventService.indexAllEvents();
+            searchService.indexAllEvents();
             System.out.println("OpenSearch indexing completed successfully!");
         } catch (Exception e) {
             System.out.println("Warning: OpenSearch indexing failed - " + e.getMessage());

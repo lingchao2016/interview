@@ -25,11 +25,5 @@ COPY --from=builder /app/target/interview-1.0-SNAPSHOT.jar app.jar
 # Expose port
 EXPOSE 8080
 
-# Set environment variables with defaults
-ENV SPRING_DATASOURCE_URL=jdbc:h2:mem:testdb
-ENV SPRING_REDIS_HOST=redis
-ENV SPRING_REDIS_PORT=6379
-ENV OPENSEARCH_URIS=http://opensearch:9200
-
 # Run the application
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["sh", "-c", "java -jar -Dspring.redis.host=${SPRING_REDIS_HOST:-redis} -Dspring.redis.port=${SPRING_REDIS_PORT:-6379} -Dopensearch.uris=${OPENSEARCH_URIS:-http://opensearch:9200} app.jar"]
