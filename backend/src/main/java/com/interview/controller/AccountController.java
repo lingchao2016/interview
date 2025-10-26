@@ -11,11 +11,14 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -34,16 +37,17 @@ public class AccountController {
         this.accountMapper = accountMapper;
     }
 
-    @Operation(summary = "Get all accounts", description = "Retrieve a list of all accounts")
+    @Operation(summary = "Get all accounts with pagination",
+               description = "Retrieve a paginated list of all accounts. Use query parameters: page (0-indexed), size, sort (e.g., 'firstName,asc')")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Successfully retrieved list of accounts")
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved paginated list of accounts")
     })
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
-    public ResponseEntity<List<AccountResponse>> getAllAccounts() {
-        List<Account> accounts = accountService.getAllAccounts();
-        List<AccountResponse> responses = accounts.stream()
-                .map(accountMapper::toResponse)
-                .collect(Collectors.toList());
+    public ResponseEntity<Page<AccountResponse>> getAllAccounts(
+            @Parameter(description = "Pagination parameters (page, size, sort)") Pageable pageable) {
+        Page<Account> accounts = accountService.getAllAccounts(pageable);
+        Page<AccountResponse> responses = accounts.map(accountMapper::toResponse);
         return ResponseEntity.ok(responses);
     }
 

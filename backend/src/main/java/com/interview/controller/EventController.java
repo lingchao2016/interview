@@ -1,9 +1,11 @@
 package com.interview.controller;
 
+import com.interview.dto.CursorPageResponse;
 import com.interview.dto.EventMapper;
 import com.interview.dto.EventRequest;
 import com.interview.dto.EventResponse;
 import com.interview.model.Event;
+import com.interview.model.EventDocument;
 import com.interview.model.Performer;
 import com.interview.model.Venue;
 import com.interview.repository.PerformerRepository;
@@ -20,9 +22,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
@@ -62,6 +65,40 @@ public class EventController {
         return ResponseEntity.ok(responses);
     }
 
+    @Operation(summary = "Get events with cursor-based pagination",
+               description = "Retrieve events using cursor-based pagination. Use 'cursor' parameter to get the next page, and 'pageSize' to specify the number of results per page. The response includes 'nextCursor' for fetching the next page and 'hasMore' to indicate if more results are available.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved paginated list of events")
+    })
+    @GetMapping("/paginated")
+    public ResponseEntity<CursorPageResponse<EventResponse>> getEventsPaginated(
+            @Parameter(description = "Cursor for pagination (UUID of the last event from previous page). Omit for the first page.")
+            @RequestParam(required = false) UUID cursor,
+            @Parameter(description = "Number of events per page (default: 10, max: 100)")
+            @RequestParam(defaultValue = "10") int pageSize) {
+
+        // Validate page size
+        if (pageSize < 1 || pageSize > 100) {
+            pageSize = 10;
+        }
+
+        CursorPageResponse<Event> eventPage = eventService.getEventsCursorPaginated(cursor, pageSize);
+
+        // Map events to responses
+        List<EventResponse> eventResponses = eventPage.getData().stream()
+                .map(eventMapper::toResponse)
+                .collect(Collectors.toList());
+
+        CursorPageResponse<EventResponse> response = new CursorPageResponse<>(
+                eventResponses,
+                eventPage.getNextCursor(),
+                eventPage.isHasMore(),
+                eventPage.getPageSize()
+        );
+
+        return ResponseEntity.ok(response);
+    }
+
     @Operation(summary = "Get event by ID", description = "Retrieve a specific event by its ID")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Event found"),
@@ -81,6 +118,7 @@ public class EventController {
             @ApiResponse(responseCode = "201", description = "Event created successfully"),
             @ApiResponse(responseCode = "400", description = "Invalid input")
     })
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<EventResponse> createEvent(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Event request object")
@@ -118,6 +156,7 @@ public class EventController {
             @ApiResponse(responseCode = "200", description = "Event updated successfully"),
             @ApiResponse(responseCode = "404", description = "Event not found")
     })
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<EventResponse> updateEvent(
             @Parameter(description = "ID of the event to update") @PathVariable UUID id,
@@ -164,6 +203,7 @@ public class EventController {
             @ApiResponse(responseCode = "204", description = "Event deleted successfully"),
             @ApiResponse(responseCode = "404", description = "Event not found")
     })
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteEvent(
             @Parameter(description = "ID of the event to delete") @PathVariable UUID id) {
@@ -215,5 +255,28 @@ public class EventController {
                 .map(eventMapper::toResponse)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(responses);
+    }
+
+    // OpenSearch search endpoints
+    @Operation(summary = "Search events using OpenSearch",
+               description = "Search events by query string across name, description, and location fields using OpenSearch full-text search")
+    @GetMapping("/search")
+    public ResponseEntity<List<EventDocument>> searchEvents(@RequestParam String query) {
+        List<EventDocument> results = eventService.opensearchSearchEvents(query);
+        return ResponseEntity.ok(results);
+    }
+
+    @Operation(summary = "Index all events to OpenSearch",
+               description = "Index all events from the database to OpenSearch for full-text search capabilities")
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/search/index")
+    public ResponseEntity<String> indexAllEvents() {
+        try {
+            eventService.indexAllEvents();
+            return ResponseEntity.ok("All events indexed successfully");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error indexing events: " + e.getMessage());
+        }
     }
 }
