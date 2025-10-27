@@ -1,5 +1,6 @@
 package com.interview.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;
@@ -7,6 +8,7 @@ import java.util.Set;
 import java.util.UUID;
 
 @Schema(description = "Event response with venue and performer details")
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class EventResponse {
 
     @Schema(description = "Event ID", example = "123e4567-e89b-12d3-a456-426614174000")
@@ -38,6 +40,7 @@ public class EventResponse {
 
     // Nested DTOs for venue and performer
     @Schema(description = "Venue information")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class VenueInfo {
         @Schema(description = "Venue ID")
         private UUID id;
@@ -56,6 +59,12 @@ public class EventResponse {
 
         @Schema(description = "ZIP code")
         private String zipCode;
+
+        @Schema(description = "Creation timestamp")
+        private LocalDateTime createdAt;
+
+        @Schema(description = "Last update timestamp")
+        private LocalDateTime updatedAt;
 
         // Constructors
         public VenueInfo() {
@@ -119,9 +128,26 @@ public class EventResponse {
             this.zipCode = zipCode;
         }
 
+        public LocalDateTime getCreatedAt() {
+            return createdAt;
+        }
+
+        public void setCreatedAt(LocalDateTime createdAt) {
+            this.createdAt = createdAt;
+        }
+
+        public LocalDateTime getUpdatedAt() {
+            return updatedAt;
+        }
+
+        public void setUpdatedAt(LocalDateTime updatedAt) {
+            this.updatedAt = updatedAt;
+        }
+
     }
 
     @Schema(description = "Performer information")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class PerformerInfo {
         @Schema(description = "Performer ID")
         private UUID id;
@@ -134,6 +160,12 @@ public class EventResponse {
 
         @Schema(description = "Biography")
         private String bio;
+
+        @Schema(description = "Creation timestamp")
+        private LocalDateTime createdAt;
+
+        @Schema(description = "Last update timestamp")
+        private LocalDateTime updatedAt;
 
         // Constructors
         public PerformerInfo() {
@@ -177,6 +209,22 @@ public class EventResponse {
 
         public void setBio(String bio) {
             this.bio = bio;
+        }
+
+        public LocalDateTime getCreatedAt() {
+            return createdAt;
+        }
+
+        public void setCreatedAt(LocalDateTime createdAt) {
+            this.createdAt = createdAt;
+        }
+
+        public LocalDateTime getUpdatedAt() {
+            return updatedAt;
+        }
+
+        public void setUpdatedAt(LocalDateTime updatedAt) {
+            this.updatedAt = updatedAt;
         }
     }
 

@@ -7,7 +7,10 @@ import com.interview.model.EventDocument;
 import com.interview.repository.EventRepository;
 import org.opensearch.action.bulk.BulkRequest;
 import org.opensearch.action.bulk.BulkResponse;
+import org.opensearch.action.delete.DeleteRequest;
+import org.opensearch.action.delete.DeleteResponse;
 import org.opensearch.action.index.IndexRequest;
+import org.opensearch.action.index.IndexResponse;
 import org.opensearch.client.RequestOptions;
 import org.opensearch.client.RestHighLevelClient;
 import org.opensearch.common.xcontent.XContentType;
@@ -24,6 +27,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class EventSearchService {
@@ -104,5 +108,27 @@ public class EventSearchService {
             page++; // next batch
 
         } while (!eventPage.isLast());
+    }
+
+    /**
+     * Index a single event to OpenSearch
+     */
+    public void indexEvent(Event event) throws Exception {
+        EventDocument doc = EventDocument.fromEvent(event);
+        IndexRequest request = new IndexRequest("events")
+                .id(doc.getId())
+                .source(objectMapper.writeValueAsString(doc), XContentType.JSON);
+
+        IndexResponse response = client.index(request, RequestOptions.DEFAULT);
+        System.out.println("Indexed event: " + event.getId() + " with result: " + response.getResult());
+    }
+
+    /**
+     * Delete an event from OpenSearch by ID
+     */
+    public void deleteEvent(UUID eventId) throws Exception {
+        DeleteRequest request = new DeleteRequest("events", eventId.toString());
+        DeleteResponse response = client.delete(request, RequestOptions.DEFAULT);
+        System.out.println("Deleted event: " + eventId + " with result: " + response.getResult());
     }
 }

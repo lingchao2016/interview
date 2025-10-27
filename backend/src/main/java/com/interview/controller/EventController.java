@@ -4,6 +4,7 @@ import com.interview.dto.CursorPageResponse;
 import com.interview.dto.EventMapper;
 import com.interview.dto.EventRequest;
 import com.interview.dto.EventResponse;
+import com.interview.dto.EventSummaryResponse;
 import com.interview.model.Event;
 import com.interview.model.EventDocument;
 import com.interview.model.Performer;
@@ -22,6 +23,8 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
@@ -55,18 +58,31 @@ public class EventController {
         this.performerRepository = performerRepository;
     }
 
-    @Operation(summary = "Get all events", description = "Retrieve a list of all events including concerts, sports, and tech events")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Successfully retrieved list of events")
-    })
-    @GetMapping
-    public ResponseEntity<List<EventResponse>> getAllEvents() {
-        List<Event> events = eventService.getAllEvents();
-        List<EventResponse> responses = events.stream()
-                .map(eventMapper::toResponse)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(responses);
+    /**
+     * Helper method to check if the current user has ADMIN role
+     */
+    private boolean isCurrentUserAdmin() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return false;
+        }
+        return authentication.getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"));
     }
+
+/*@Operation(summary = "Get all events", description = "Retrieve a list of all events including concerts, sports, and tech events")
+@ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Successfully retrieved list of events")
+})
+@GetMapping
+public ResponseEntity<List<EventSummaryResponse>> getAllEvents() {
+    boolean isAdmin = isCurrentUserAdmin();
+    List<Event> events = eventService.getAllEvents();
+    List<EventSummaryResponse> responses = events.stream()
+            .map(event -> eventMapper.toSummaryResponse(event, isAdmin))
+            .collect(Collectors.toList());
+    return ResponseEntity.ok(responses);
+}*/
 
     @Operation(summary = "Get events with cursor-based pagination",
                description = "Retrieve events using cursor-based pagination. Use 'cursor' parameter to get the next page, and 'pageSize' to specify the number of results per page. The response includes 'nextCursor' for fetching the next page and 'hasMore' to indicate if more results are available.")
@@ -74,11 +90,13 @@ public class EventController {
             @ApiResponse(responseCode = "200", description = "Successfully retrieved paginated list of events")
     })
     @GetMapping("/paginated")
-    public ResponseEntity<CursorPageResponse<EventResponse>> getEventsPaginated(
+    public ResponseEntity<CursorPageResponse<EventSummaryResponse>> getEventsPaginated(
             @Parameter(description = "Cursor for pagination (UUID of the last event from previous page). Omit for the first page.")
             @RequestParam(required = false) UUID cursor,
             @Parameter(description = "Number of events per page (default: 10, max: 100)")
             @RequestParam(defaultValue = "10") int pageSize) {
+
+        boolean isAdmin = isCurrentUserAdmin();
 
         // Validate page size
         if (pageSize < 1 || pageSize > 100) {
@@ -87,12 +105,12 @@ public class EventController {
 
         CursorPageResponse<Event> eventPage = eventService.getEventsCursorPaginated(cursor, pageSize);
 
-        // Map events to responses
-        List<EventResponse> eventResponses = eventPage.getData().stream()
-                .map(eventMapper::toResponse)
+        // Map events to summary responses
+        List<EventSummaryResponse> eventResponses = eventPage.getData().stream()
+                .map(event -> eventMapper.toSummaryResponse(event, isAdmin))
                 .collect(Collectors.toList());
 
-        CursorPageResponse<EventResponse> response = new CursorPageResponse<>(
+        CursorPageResponse<EventSummaryResponse> response = new CursorPageResponse<>(
                 eventResponses,
                 eventPage.getNextCursor(),
                 eventPage.isHasMore(),
@@ -110,8 +128,9 @@ public class EventController {
     @GetMapping("/{id}")
     public ResponseEntity<EventResponse> getEventById(
             @Parameter(description = "ID of the event to retrieve") @PathVariable UUID id) {
+        boolean isAdmin = isCurrentUserAdmin();
         return eventService.getEventById(id)
-                .map(eventMapper::toResponse)
+                .map(event -> eventMapper.toResponse(event, isAdmin))
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -127,6 +146,7 @@ public class EventController {
             @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Event request object")
             @Valid @RequestBody EventRequest request) {
         try {
+            boolean isAdmin = isCurrentUserAdmin();
             Event event = eventMapper.toEntity(request);
 
             // Set venue if provided
@@ -148,7 +168,7 @@ public class EventController {
             }
 
             Event createdEvent = eventService.createEvent(event);
-            return ResponseEntity.status(HttpStatus.CREATED).body(eventMapper.toResponse(createdEvent));
+            return ResponseEntity.status(HttpStatus.CREATED).body(eventMapper.toResponse(createdEvent, isAdmin));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
@@ -166,6 +186,7 @@ public class EventController {
             @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Updated event request object")
             @Valid @RequestBody EventRequest request) {
         try {
+            boolean isAdmin = isCurrentUserAdmin();
             Event event = eventService.getEventById(id)
                     .orElseThrow(() -> new RuntimeException("Event not found with id: " + id));
 
@@ -195,7 +216,7 @@ public class EventController {
             }
 
             Event updatedEvent = eventService.createEvent(event);
-            return ResponseEntity.ok(eventMapper.toResponse(updatedEvent));
+            return ResponseEntity.ok(eventMapper.toResponse(updatedEvent, isAdmin));
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
         }
@@ -230,32 +251,35 @@ public class EventController {
 
     // Get events by location
     @GetMapping("/location/{location}")
-    public ResponseEntity<List<EventResponse>> getEventsByLocation(@PathVariable String location) {
+    public ResponseEntity<List<EventSummaryResponse>> getEventsByLocation(@PathVariable String location) {
+        boolean isAdmin = isCurrentUserAdmin();
         List<Event> events = eventService.getEventsByLocation(location);
-        List<EventResponse> responses = events.stream()
-                .map(eventMapper::toResponse)
+        List<EventSummaryResponse> responses = events.stream()
+                .map(event -> eventMapper.toSummaryResponse(event, isAdmin))
                 .collect(Collectors.toList());
         return ResponseEntity.ok(responses);
     }
 
     // Get upcoming events
     @GetMapping("/upcoming")
-    public ResponseEntity<List<EventResponse>> getUpcomingEvents() {
+    public ResponseEntity<List<EventSummaryResponse>> getUpcomingEvents() {
+        boolean isAdmin = isCurrentUserAdmin();
         List<Event> events = eventService.getUpcomingEvents();
-        List<EventResponse> responses = events.stream()
-                .map(eventMapper::toResponse)
+        List<EventSummaryResponse> responses = events.stream()
+                .map(event -> eventMapper.toSummaryResponse(event, isAdmin))
                 .collect(Collectors.toList());
         return ResponseEntity.ok(responses);
     }
 
     // Get events between dates
     @GetMapping("/between")
-    public ResponseEntity<List<EventResponse>> getEventsBetweenDates(
+    public ResponseEntity<List<EventSummaryResponse>> getEventsBetweenDates(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
+        boolean isAdmin = isCurrentUserAdmin();
         List<Event> events = eventService.getEventsBetweenDates(startDate, endDate);
-        List<EventResponse> responses = events.stream()
-                .map(eventMapper::toResponse)
+        List<EventSummaryResponse> responses = events.stream()
+                .map(event -> eventMapper.toSummaryResponse(event, isAdmin))
                 .collect(Collectors.toList());
         return ResponseEntity.ok(responses);
     }

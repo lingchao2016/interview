@@ -20,10 +20,12 @@ import java.util.stream.Collectors;
 public class EventService {
 
     private final EventRepository eventRepository;
+    private final EventSearchService searchService;
 
     @Autowired
-    public EventService(EventRepository eventRepository) {
+    public EventService(EventRepository eventRepository, EventSearchService searchService) {
         this.eventRepository = eventRepository;
+        this.searchService = searchService;
     }
 
     @Cacheable(value = "events", key = "'all'")
@@ -33,12 +35,19 @@ public class EventService {
 
     @Cacheable(value = "events", key = "#id")
     public Optional<Event> getEventById(UUID id) {
-        return eventRepository.findById(id);
+        return eventRepository.findByIdWithDetails(id);
     }
 
     @CacheEvict(value = "events", allEntries = true)
     public Event createEvent(Event event) {
-        return eventRepository.save(event);
+        Event savedEvent = eventRepository.save(event);
+        // Index to OpenSearch
+        try {
+            searchService.indexEvent(savedEvent);
+        } catch (Exception e) {
+            System.err.println("Failed to index event to OpenSearch: " + e.getMessage());
+        }
+        return savedEvent;
     }
 
     @CacheEvict(value = "events", allEntries = true)
@@ -51,7 +60,14 @@ public class EventService {
         event.setEventDate(eventDetails.getEventDate());
         event.setLocation(eventDetails.getLocation());
 
-        return eventRepository.save(event);
+        Event updatedEvent = eventRepository.save(event);
+        // Re-index to OpenSearch
+        try {
+            searchService.indexEvent(updatedEvent);
+        } catch (Exception e) {
+            System.err.println("Failed to update event in OpenSearch: " + e.getMessage());
+        }
+        return updatedEvent;
     }
 
     @CacheEvict(value = "events", allEntries = true)
@@ -59,6 +75,12 @@ public class EventService {
         Event event = eventRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Event not found with id: " + id));
         eventRepository.delete(event);
+        // Delete from OpenSearch
+        try {
+            searchService.deleteEvent(id);
+        } catch (Exception e) {
+            System.err.println("Failed to delete event from OpenSearch: " + e.getMessage());
+        }
     }
 
     @Cacheable(value = "events", key = "'search:' + #name")

@@ -9,10 +9,15 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
 public interface EventRepository extends JpaRepository<Event, UUID> {
+
+    // Find event by ID with venue and performers eagerly fetched
+    @Query("SELECT e FROM Event e LEFT JOIN FETCH e.venue LEFT JOIN FETCH e.performers WHERE e.id = :id")
+    Optional<Event> findByIdWithDetails(@Param("id") UUID id);
 
     // Find events by name (case-insensitive)
     List<Event> findByNameContainingIgnoreCase(String name);

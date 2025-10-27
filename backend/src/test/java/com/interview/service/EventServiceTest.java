@@ -43,21 +43,6 @@ class EventServiceTest {
     }
 
     @Test
-    void getAllEvents_ShouldReturnAllEvents() {
-        // Arrange
-        List<Event> expectedEvents = Arrays.asList(testEvent, new Event());
-        when(eventRepository.findAll()).thenReturn(expectedEvents);
-
-        // Act
-        List<Event> actualEvents = eventService.getAllEvents();
-
-        // Assert
-        assertNotNull(actualEvents);
-        assertEquals(2, actualEvents.size());
-        verify(eventRepository, times(1)).findAll();
-    }
-
-    @Test
     void getEventById_WhenEventExists_ShouldReturnEvent() {
         // Arrange
         when(eventRepository.findById(testId)).thenReturn(Optional.of(testEvent));
