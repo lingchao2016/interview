@@ -14,8 +14,6 @@ import com.interview.service.EventSearchService;
 import com.interview.service.EventService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -162,7 +160,7 @@ public class EventController {
             @ApiResponse(responseCode = "404", description = "Event not found")
     })
     @PreAuthorize("hasRole('ADMIN')")
-    @PutMapping("/{id}")
+    @PatchMapping("/{id}")
     public ResponseEntity<EventResponse> updateEvent(
             @Parameter(description = "ID of the event to update") @PathVariable UUID id,
             @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Updated event request object")

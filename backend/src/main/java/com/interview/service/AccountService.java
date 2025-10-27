@@ -83,12 +83,4 @@ public class AccountService {
     public List<Account> searchAccountsByName(String name) {
         return accountRepository.findByFirstNameContainingIgnoreCaseOrLastNameContainingIgnoreCase(name, name);
     }
-
-    public List<Account> getAccountsByFirstName(String firstName) {
-        return accountRepository.findByFirstNameContainingIgnoreCase(firstName);
-    }
-
-    public List<Account> getAccountsByLastName(String lastName) {
-        return accountRepository.findByLastNameContainingIgnoreCase(lastName);
-    }
 }

@@ -103,7 +103,7 @@ public class AccountController {
             @ApiResponse(responseCode = "404", description = "Account not found"),
             @ApiResponse(responseCode = "400", description = "Invalid input or email already taken")
     })
-    @PutMapping("/{id}")
+    @PatchMapping("/{id}")
     public ResponseEntity<AccountResponse> updateAccount(
             @Parameter(description = "ID of the account to update") @PathVariable UUID id,
             @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Updated account request object")
@@ -143,32 +143,6 @@ public class AccountController {
     @GetMapping("/search")
     public ResponseEntity<List<AccountResponse>> searchAccountsByName(@RequestParam String name) {
         List<Account> accounts = accountService.searchAccountsByName(name);
-        List<AccountResponse> responses = accounts.stream()
-                .map(accountMapper::toResponse)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(responses);
-    }
-
-    @Operation(summary = "Get accounts by first name", description = "Get all accounts with matching first name")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Successfully retrieved list of accounts")
-    })
-    @GetMapping("/firstname/{firstName}")
-    public ResponseEntity<List<AccountResponse>> getAccountsByFirstName(@PathVariable String firstName) {
-        List<Account> accounts = accountService.getAccountsByFirstName(firstName);
-        List<AccountResponse> responses = accounts.stream()
-                .map(accountMapper::toResponse)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(responses);
-    }
-
-    @Operation(summary = "Get accounts by last name", description = "Get all accounts with matching last name")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Successfully retrieved list of accounts")
-    })
-    @GetMapping("/lastname/{lastName}")
-    public ResponseEntity<List<AccountResponse>> getAccountsByLastName(@PathVariable String lastName) {
-        List<Account> accounts = accountService.getAccountsByLastName(lastName);
         List<AccountResponse> responses = accounts.stream()
                 .map(accountMapper::toResponse)
                 .collect(Collectors.toList());
