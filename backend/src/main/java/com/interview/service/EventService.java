@@ -9,6 +9,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -33,11 +34,13 @@ public class EventService {
         return eventRepository.findAll();
     }
 
+    @Transactional(readOnly = true)
     @Cacheable(value = "events", key = "#id")
     public Optional<Event> getEventById(UUID id) {
         return eventRepository.findByIdWithDetails(id);
     }
 
+    @Transactional
     @CacheEvict(value = "events", allEntries = true)
     public Event createEvent(Event event) {
         Event savedEvent = eventRepository.save(event);
@@ -50,6 +53,7 @@ public class EventService {
         return savedEvent;
     }
 
+    @Transactional
     @CacheEvict(value = "events", allEntries = true)
     public Event updateEvent(UUID id, Event eventDetails) {
         Event event = eventRepository.findById(id)
@@ -70,6 +74,7 @@ public class EventService {
         return updatedEvent;
     }
 
+    @Transactional
     @CacheEvict(value = "events", allEntries = true)
     public void deleteEvent(UUID id) {
         Event event = eventRepository.findById(id)
@@ -103,6 +108,7 @@ public class EventService {
         return eventRepository.findByEventDateBetween(startDate, endDate);
     }
 
+    @Transactional(readOnly = true)
     public CursorPageResponse<Event> getEventsCursorPaginated(UUID cursor, int pageSize) {
         // Fetch one extra to determine if there are more results
         Pageable pageable = PageRequest.of(0, pageSize + 1);

@@ -45,7 +45,7 @@ class EventServiceTest {
     @Test
     void getEventById_WhenEventExists_ShouldReturnEvent() {
         // Arrange
-        when(eventRepository.findById(testId)).thenReturn(Optional.of(testEvent));
+        when(eventRepository.findByIdWithDetails(testId)).thenReturn(Optional.of(testEvent));
 
         // Act
         Optional<Event> result = eventService.getEventById(testId);
@@ -53,20 +53,20 @@ class EventServiceTest {
         // Assert
         assertTrue(result.isPresent());
         assertEquals(testEvent.getName(), result.get().getName());
-        verify(eventRepository, times(1)).findById(testId);
+        verify(eventRepository, times(1)).findByIdWithDetails(testId);
     }
 
     @Test
     void getEventById_WhenEventDoesNotExist_ShouldReturnEmpty() {
         // Arrange
-        when(eventRepository.findById(testId)).thenReturn(Optional.empty());
+        when(eventRepository.findByIdWithDetails(testId)).thenReturn(Optional.empty());
 
         // Act
         Optional<Event> result = eventService.getEventById(testId);
 
         // Assert
         assertFalse(result.isPresent());
-        verify(eventRepository, times(1)).findById(testId);
+        verify(eventRepository, times(1)).findByIdWithDetails(testId);
     }
 
     @Test

@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -50,6 +51,7 @@ public class DataSeeder implements CommandLineRunner {
     private EventSearchService searchService;
 
     @Override
+    @Transactional
     public void run(String... args) throws Exception {
         // Check if data already exists
         if (accountRepository.count() > 0) {

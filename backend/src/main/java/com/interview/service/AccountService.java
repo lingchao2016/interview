@@ -7,6 +7,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -40,6 +41,7 @@ public class AccountService {
         return accountRepository.findByEmail(email);
     }
 
+    @Transactional
     public Account createAccount(Account account) {
         // Check if account with email already exists
         if (accountRepository.findByEmail(account.getEmail()).isPresent()) {
@@ -50,6 +52,7 @@ public class AccountService {
         return accountRepository.save(account);
     }
 
+    @Transactional
     public Account updateAccount(UUID id, Account accountDetails) {
         Account account = accountRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Account not found with id: " + id));
@@ -74,6 +77,7 @@ public class AccountService {
         return accountRepository.save(account);
     }
 
+    @Transactional
     public void deleteAccount(UUID id) {
         Account account = accountRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Account not found with id: " + id));
