@@ -52,10 +52,10 @@ class AccountServiceTest {
     }
 
     @Test
-    void getAllAccounts_ShouldReturnAllAccounts() {
+    void getAllAccounts_ShouldReturnAllNonDeletedAccounts() {
         // Arrange
         List<Account> expectedAccounts = Arrays.asList(testAccount, new Account());
-        when(accountRepository.findAll()).thenReturn(expectedAccounts);
+        when(accountRepository.findByDeletedAtIsNull()).thenReturn(expectedAccounts);
 
         // Act
         List<Account> actualAccounts = accountService.getAllAccounts();
@@ -63,16 +63,16 @@ class AccountServiceTest {
         // Assert
         assertNotNull(actualAccounts);
         assertEquals(2, actualAccounts.size());
-        verify(accountRepository, times(1)).findAll();
+        verify(accountRepository, times(1)).findByDeletedAtIsNull();
     }
 
     @Test
-    void getAllAccountsWithPageable_ShouldReturnPagedAccounts() {
+    void getAllAccountsWithPageable_ShouldReturnPagedNonDeletedAccounts() {
         // Arrange
         List<Account> accounts = Arrays.asList(testAccount);
         Page<Account> expectedPage = new PageImpl<>(accounts);
         Pageable pageable = PageRequest.of(0, 10);
-        when(accountRepository.findAll(pageable)).thenReturn(expectedPage);
+        when(accountRepository.findByDeletedAtIsNull(pageable)).thenReturn(expectedPage);
 
         // Act
         Page<Account> actualPage = accountService.getAllAccounts(pageable);
@@ -80,13 +80,13 @@ class AccountServiceTest {
         // Assert
         assertNotNull(actualPage);
         assertEquals(1, actualPage.getTotalElements());
-        verify(accountRepository, times(1)).findAll(pageable);
+        verify(accountRepository, times(1)).findByDeletedAtIsNull(pageable);
     }
 
     @Test
     void getAccountById_WhenAccountExists_ShouldReturnAccount() {
         // Arrange
-        when(accountRepository.findById(testId)).thenReturn(Optional.of(testAccount));
+        when(accountRepository.findByIdAndDeletedAtIsNull(testId)).thenReturn(Optional.of(testAccount));
 
         // Act
         Optional<Account> result = accountService.getAccountById(testId);
@@ -94,20 +94,20 @@ class AccountServiceTest {
         // Assert
         assertTrue(result.isPresent());
         assertEquals(testAccount.getEmail(), result.get().getEmail());
-        verify(accountRepository, times(1)).findById(testId);
+        verify(accountRepository, times(1)).findByIdAndDeletedAtIsNull(testId);
     }
 
     @Test
     void getAccountById_WhenAccountDoesNotExist_ShouldReturnEmpty() {
         // Arrange
-        when(accountRepository.findById(testId)).thenReturn(Optional.empty());
+        when(accountRepository.findByIdAndDeletedAtIsNull(testId)).thenReturn(Optional.empty());
 
         // Act
         Optional<Account> result = accountService.getAccountById(testId);
 
         // Assert
         assertFalse(result.isPresent());
-        verify(accountRepository, times(1)).findById(testId);
+        verify(accountRepository, times(1)).findByIdAndDeletedAtIsNull(testId);
     }
 
     @Test
@@ -142,7 +142,7 @@ class AccountServiceTest {
     @Test
     void createAccount_WhenEmailIsUnique_ShouldEncodePasswordAndSaveAccount() {
         // Arrange
-        when(accountRepository.findByEmail(testAccount.getEmail())).thenReturn(Optional.empty());
+        when(accountRepository.findByEmailAndDeletedAtIsNull(testAccount.getEmail())).thenReturn(Optional.empty());
         when(passwordEncoder.encode(testAccount.getPassword())).thenReturn("encodedPassword");
         when(accountRepository.save(any(Account.class))).thenReturn(testAccount);
 
@@ -158,14 +158,14 @@ class AccountServiceTest {
     @Test
     void createAccount_WhenEmailAlreadyExists_ShouldThrowException() {
         // Arrange
-        when(accountRepository.findByEmail(testAccount.getEmail())).thenReturn(Optional.of(testAccount));
+        when(accountRepository.findByEmailAndDeletedAtIsNull(testAccount.getEmail())).thenReturn(Optional.of(testAccount));
 
         // Act & Assert
         RuntimeException exception = assertThrows(RuntimeException.class, () -> {
             accountService.createAccount(testAccount);
         });
         assertTrue(exception.getMessage().contains("already exists"));
-        verify(accountRepository, times(1)).findByEmail(testAccount.getEmail());
+        verify(accountRepository, times(1)).findByEmailAndDeletedAtIsNull(testAccount.getEmail());
         verify(accountRepository, never()).save(any(Account.class));
     }
 
@@ -219,7 +219,7 @@ class AccountServiceTest {
         updatedDetails.setEmail("existing@example.com"); // Email taken by another account
 
         when(accountRepository.findById(testId)).thenReturn(Optional.of(testAccount));
-        when(accountRepository.findByEmail("existing@example.com")).thenReturn(Optional.of(existingAccount));
+        when(accountRepository.findByEmailAndDeletedAtIsNull("existing@example.com")).thenReturn(Optional.of(existingAccount));
 
         // Act & Assert
         RuntimeException exception = assertThrows(RuntimeException.class, () -> {
@@ -274,17 +274,18 @@ class AccountServiceTest {
     }
 
     @Test
-    void deleteAccount_WhenAccountExists_ShouldDeleteAccount() {
+    void deleteAccount_WhenAccountExists_ShouldSoftDeleteAccount() {
         // Arrange
         when(accountRepository.findById(testId)).thenReturn(Optional.of(testAccount));
-        doNothing().when(accountRepository).delete(testAccount);
+        when(accountRepository.save(any(Account.class))).thenReturn(testAccount);
 
         // Act
         accountService.deleteAccount(testId);
 
         // Assert
         verify(accountRepository, times(1)).findById(testId);
-        verify(accountRepository, times(1)).delete(testAccount);
+        verify(accountRepository, times(1)).save(testAccount);
+        assertNotNull(testAccount.getDeletedAt());
     }
 
     @Test
@@ -297,15 +298,30 @@ class AccountServiceTest {
             accountService.deleteAccount(testId);
         });
         verify(accountRepository, times(1)).findById(testId);
-        verify(accountRepository, never()).delete(any(Account.class));
+        verify(accountRepository, never()).save(any(Account.class));
     }
 
     @Test
-    void searchAccountsByName_ShouldReturnMatchingAccounts() {
+    void deleteAccount_WhenAccountAlreadyDeleted_ShouldThrowException() {
+        // Arrange
+        testAccount.setDeletedAt(java.time.LocalDateTime.now());
+        when(accountRepository.findById(testId)).thenReturn(Optional.of(testAccount));
+
+        // Act & Assert
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+            accountService.deleteAccount(testId);
+        });
+        assertTrue(exception.getMessage().contains("already deleted"));
+        verify(accountRepository, times(1)).findById(testId);
+        verify(accountRepository, never()).save(any(Account.class));
+    }
+
+    @Test
+    void searchAccountsByName_ShouldReturnMatchingNonDeletedAccounts() {
         // Arrange
         String searchTerm = "John";
         List<Account> expectedAccounts = Arrays.asList(testAccount);
-        when(accountRepository.findByFirstNameContainingIgnoreCaseOrLastNameContainingIgnoreCase(searchTerm, searchTerm))
+        when(accountRepository.findByNameContainingAndNotDeleted(searchTerm, searchTerm))
                 .thenReturn(expectedAccounts);
 
         // Act
@@ -316,14 +332,14 @@ class AccountServiceTest {
         assertEquals(1, result.size());
         assertEquals(testAccount.getFirstName(), result.get(0).getFirstName());
         verify(accountRepository, times(1))
-                .findByFirstNameContainingIgnoreCaseOrLastNameContainingIgnoreCase(searchTerm, searchTerm);
+                .findByNameContainingAndNotDeleted(searchTerm, searchTerm);
     }
 
     @Test
     void searchAccountsByName_WithNoMatches_ShouldReturnEmptyList() {
         // Arrange
         String searchTerm = "Nonexistent";
-        when(accountRepository.findByFirstNameContainingIgnoreCaseOrLastNameContainingIgnoreCase(searchTerm, searchTerm))
+        when(accountRepository.findByNameContainingAndNotDeleted(searchTerm, searchTerm))
                 .thenReturn(Arrays.asList());
 
         // Act
@@ -333,6 +349,6 @@ class AccountServiceTest {
         assertNotNull(result);
         assertEquals(0, result.size());
         verify(accountRepository, times(1))
-                .findByFirstNameContainingIgnoreCaseOrLastNameContainingIgnoreCase(searchTerm, searchTerm);
+                .findByNameContainingAndNotDeleted(searchTerm, searchTerm);
     }
 }

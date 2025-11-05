@@ -1,5 +1,6 @@
 package com.interview.model;
 
+import com.interview.listener.AccountAuditListener;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -8,6 +9,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "account")
+@EntityListeners(AccountAuditListener.class)
 public class Account {
 
     @Id
@@ -35,6 +37,12 @@ public class Account {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    @Transient
+    private boolean auditedAsDeleted = false; // Transient flag to track if deletion was audited
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
@@ -131,6 +139,22 @@ public class Account {
         this.updatedAt = updatedAt;
     }
 
+    public LocalDateTime getDeletedAt() {
+        return deletedAt;
+    }
+
+    public void setDeletedAt(LocalDateTime deletedAt) {
+        this.deletedAt = deletedAt;
+    }
+
+    public boolean isAuditedAsDeleted() {
+        return auditedAsDeleted;
+    }
+
+    public void setAuditedAsDeleted(boolean auditedAsDeleted) {
+        this.auditedAsDeleted = auditedAsDeleted;
+    }
+
     public Set<Role> getRoles() {
         return roles;
     }
@@ -149,6 +173,7 @@ public class Account {
                 ", phone='" + phone + '\'' +
                 ", createdAt=" + createdAt +
                 ", updatedAt=" + updatedAt +
+                ", deletedAt=" + deletedAt +
                 '}';
     }
 }

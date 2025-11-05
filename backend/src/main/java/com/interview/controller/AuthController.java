@@ -66,7 +66,7 @@ public class AuthController {
         final UserDetails userDetails = userDetailsService.loadUserByUsername(loginRequest.getEmail());
         final String jwt = jwtUtil.generateToken(userDetails);
 
-        Account account = accountRepository.findByEmail(loginRequest.getEmail())
+        Account account = accountRepository.findByEmailAndDeletedAtIsNull(loginRequest.getEmail())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         LoginResponse response = new LoginResponse(jwt, account.getEmail(),
@@ -82,8 +82,8 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody AccountRequest accountRequest) {
         try {
-            // Check if email already exists
-            if (accountRepository.findByEmail(accountRequest.getEmail()).isPresent()) {
+            // Check if non-deleted account with email already exists
+            if (accountRepository.findByEmailAndDeletedAtIsNull(accountRequest.getEmail()).isPresent()) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Email already exists");
             }
 
