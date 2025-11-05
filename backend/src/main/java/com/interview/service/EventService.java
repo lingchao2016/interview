@@ -124,7 +124,6 @@ public class EventService {
 
             events = eventRepository.findEventsAfterCursor(
                     cursorEvent.getCreatedAt(),
-                    cursor,
                     pageable
             );
         }

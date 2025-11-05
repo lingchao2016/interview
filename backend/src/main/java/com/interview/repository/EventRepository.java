@@ -35,9 +35,8 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
     @Query("SELECT e FROM Event e ORDER BY e.createdAt ASC, e.id ASC")
     List<Event> findFirstPage(Pageable pageable);
 
-    // Cursor-based pagination: get events after cursor (using createdAt and id for ordering)
-    @Query("SELECT e FROM Event e WHERE e.createdAt > :cursorCreatedAt OR (e.createdAt = :cursorCreatedAt AND e.id > :cursorId) ORDER BY e.createdAt ASC, e.id ASC")
+    // Cursor-based pagination: get events after cursor (simplified - uses only createdAt)
+    @Query("SELECT e FROM Event e WHERE e.createdAt > :cursorCreatedAt ORDER BY e.createdAt ASC, e.id ASC")
     List<Event> findEventsAfterCursor(@Param("cursorCreatedAt") LocalDateTime cursorCreatedAt,
-                                      @Param("cursorId") UUID cursorId,
                                       Pageable pageable);
 }
